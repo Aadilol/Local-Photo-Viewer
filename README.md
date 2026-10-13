@@ -25,25 +25,9 @@ dist\PhotoViewer.exe
 
 This `.exe` is self-contained and does not need Python installed on the target PC. It must be compiled **on Windows**; PyInstaller cannot cross-compile a Windows executable from Linux/macOS. An unsigned personal app can trigger Windows SmartScreen.
 
-### If `build_windows.bat` closes, fails, or does not create `dist`
-
-1. **Extract All** from the downloaded ZIP into a normal local folder (for example, `Documents\PhotoViewer`); do not run the `.bat` directly from inside the ZIP preview. Confirm `main.py`, `requirements.txt`, and `PhotoViewer.spec` are next to `build_windows.bat`.
-2. Install **Python 3.12 (64-bit)** if needed. Internet access is required the first time to install packages. The scripts accept the `py` launcher **or** `python` on PATH.
-3. Double-click **`build_windows.bat`**. The updated file uses Windows CRLF line endings and **pauses on both success and failure**. It prints the build stage and writes the complete diagnostic log to **`build_windows.log`** (next to the batch file).
-4. If the window still vanishes, open the project folder in Explorer, click the **address bar**, type **`cmd`** and press Enter. In the Command Prompt type `build_windows.bat` and press Enter. The existing console stays open even if Windows aborts the script.
-5. If `build_windows.log` reports an error in `.venv`, close the app, delete **only `.venv`**, then retry. If pip fails, check the last entries of the log and confirm Python/network access. If a test or PyInstaller fails, the log identifies that exact stage. The build intentionally stops on test errors instead of creating an untested executable.
-6. Once complete, look for **`dist\PhotoViewer.exe`**. Windows Defender or other security software can quarantine unsigned local executables; consult its quarantine history if a successful build later disappears.
-
 A build failure should **not** modify photos or saved folder preferences. The `.venv`, `build`, and `dist` folders are generated build artifacts and can be recreated. Do not delete your photo folders or `PhotoViewerHistory` undo journals.
 
-**Optional cloud Windows build:** push this project to a GitHub repository, then open **Actions → Build Windows EXE → Run workflow**. Download the `PhotoViewer-Windows` artifact created by `.github/workflows/build-windows.yml`.
-
-**Video support:** MP4 and MOV playback uses Qt Multimedia (PySide6) inside the viewer. The build includes the `imageio-ffmpeg` helper executable for video thumbnails and a fallback reader for common embedded `creation_time` metadata. You no longer need to install FFmpeg separately just to show video thumbnails. Installing `ffprobe.exe` beside `PhotoViewer.exe` or on PATH is optional and improves video metadata extraction. The Qt playback backend supports common H.264/AAC MP4 files; HEVC/H.265 and some MOV codecs depend on the Windows/Qt decoder available. When a format cannot be decoded, the viewer shows an explanation and an **Open in default app** button. Videos are never transcoded or modified merely by previewing them.
-
-
-## Scan stability, removed files, and crash diagnostics
-
-This update fixes the scan completion and thumbnail cross-thread dispatch: all timeline and `QPixmap` updates now run through explicitly **queued GUI-thread slots**. Completed thumbnail jobs are tagged with a scan generation, so old jobs cannot reinsert removed images after a rescan. Files removed between discovery and metadata extraction are safely skipped. The photo selection is cleared when a new scan finishes, and errors in the completion callback are logged instead of leaving the worker thread running.
+**Cloud Windows build:** Open **Actions → Build Windows EXE → Run workflow**. Download the `PhotoViewer-Windows` artifact created by `.github/workflows/build-windows.yml`.
 
 If Windows closes Photo Viewer unexpectedly, open **`%LOCALAPPDATA%\PhotoViewer`** in File Explorer (paste it into the address bar). The two useful files are:
 
@@ -53,25 +37,6 @@ If Windows closes Photo Viewer unexpectedly, open **`%LOCALAPPDATA%\PhotoViewer`
 These log files contain paths to your photographs, so remove/redact personal folder names before sharing them publicly. They are independent of your photo library and your undo journals.
 
 If the automatic scan prevents the app from opening, open Command Prompt in the extracted project directory and run **`run_windows.bat --no-auto-scan`**. You can then choose a different folder or press Rescan manually. When running the standalone EXE, use **`PhotoViewer.exe --no-auto-scan`** from a Command Prompt in `dist`. The saved source/destination folder settings remain untouched. On the following regular launch, auto-scanning resumes normally.
-
-To update an older executable, extract this version into a clean folder and run **`build_windows.bat`**. Replace the old `.exe` with the newly built `dist\PhotoViewer.exe`; **do not delete `%LOCALAPPDATA%\PhotoViewer`** or the QSettings registry location. The earlier undo journals are unchanged.
-
-## Design system
-
-All interface colors live in **`photoviewer/theme.py`**, which defines `LIGHT`, `DARK`, the semantic date-source colors, and generates one shared Qt stylesheet (`qss`). The QPainter-based grid reads those same tokens; there are **no separate thumbnail color constants** to maintain. Windows system light/dark appearance is used by default; **Settings → Appearance** can override it.
-
-| Token | Light | Dark |
-| --- | --- | --- |
-| Background | `#FFFFFF` | `#14161B` |
-| Surface | `#F6F7F9` | `#1D2027` |
-| Border | `#E3E6EB` | `#2C303A` |
-| Text | `#1F2430` | `#ECEEF2` |
-| Secondary text | `#6B7280` | `#9AA1AE` |
-| Accent | `#3B82F6` | `#60A5FA` |
-
-Semantic colors: **reliable** `#22C55E` (EXIF/video metadata/JSON), **inferred** `#3B82F6` (filename), **unreliable** `#F59E0B` (filesystem date), and **destructive** `#EF4444` (moves/higher-risk operations). Chips contain a *text label or symbol* as well as color. Fonts are Segoe UI, 18px section headings, 14px controls and 12px badges. A consistent 8px layout rhythm, rounded 8–12px cards, lightweight borders and simple 160–180ms easing are used throughout. Source SVG icons are shipped under `photoviewer/assets/icons/`.
-
-The thumbnail timeline is **virtualized**: layouts are computed without allocating a QWidget for every image. Only visible thumbnails are loaded on background threads and a bounded 300-image in-memory cache is used. The adaptive square grid, sticky year/month context, and selected/highlighted states are custom drawn.
 
 ## Saved folders and preferences
 
@@ -95,8 +60,6 @@ HKEY_CURRENT_USER\Software\PhotoViewer\Photo Viewer
 **Only an explicit Change photo folder / Change destination chooser writes a folder setting.** Neither restoring the window, scanning, rescanning, a preview, undo, dragging files nor running operations writes a source/destination setting. Cancelling the chooser does not change the saved path. Missing or unplugged directories stay remembered; the top bar displays an inline **Folder not found. Choose a new one?** prompt, instead of silently switching folders. For a missing output directory, the operation dialog requires you to explicitly choose another destination before previewing.
 
 Settings are migrated **once** from legacy organization/application variants and common previous key names if the new key is still missing. New values are never overwritten and old settings are never deleted. An older release did not persist QSettings at all, so there may be nothing to import for users of that release. **Settings → Reset saved settings** asks for confirmation, clears preferences, and marks migration complete so previous values do not reappear on restart. It does **not** touch your photos or undo journals.
-
-Qt stores analogous user preferences in its native storage on macOS or in the user's XDG configuration directory on Linux. To change a theme color, edit `LIGHT` or `DARK` in `photoviewer/theme.py`, then rerun the app or rebuild the executable.
 
 ## Date priority and accuracy
 
@@ -152,14 +115,5 @@ build_windows.bat                 Tests + Windows EXE builder
 tests/                          Core + saved-folder + Qt integration tests
 .github/workflows/               Optional Windows CI build
 ```
-
-## Rename audit
-
-- Application window title, About entry, QApplication name and organization: **Photo Viewer** / `PhotoViewer`.
-- Python import package: `photoviewer`.
-- PyInstaller spec and executable: `PhotoViewer.spec` / `dist\PhotoViewer.exe`.
-- Windows run and build scripts, GitHub artifact/build workflow, README, package description and LICENSE attribution updated.
-- New history folder and journal names: `PhotoViewerHistory`, `photo_viewer_journal.jsonl`, `photo_viewer_job.json`.
-- Preferences use a new application identity while preserving supported legacy keys through one-time migration.
 
 **Known limitations:** Unsupported EXIF formats are never rewritten; a manual correction affects the session until Fix dates is confirmed; duplicate file content is not deduplicated. Undo is best-effort across crashes or externally edited files, so backups are still recommended. Windows EXE builds have to be validated on Windows.
