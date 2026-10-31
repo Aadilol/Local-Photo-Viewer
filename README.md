@@ -1,6 +1,7 @@
 # Photo Viewer
+My phone storage was full and when I moved it to my PC it wasn't sorted well and it was really hard combing through pictures. This desktop app essentially just sorts it almost like google photos (by year). Ca
 
-**Photo Viewer** is a local, Windows-first photo timeline for recovering original capture dates after copying pictures from Google Photos, a phone, or an external drive. It also runs on macOS and Linux using PySide6. Files are not uploaded to a server.
+It is a local photo timeline for recovering original capture dates after copying pictures from Google Photos, a phone, or an external drive. It also runs on macOS and Linux using PySide6. Files are not uploaded to a server.
 
 ## Quick start (Windows)
 
